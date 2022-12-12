@@ -203,6 +203,89 @@ namespace buildTabla2
             return Pagos;
         }
 
+        /// <summary>
+        /// Crea la tabla de seguros con el monto del 1erpago y pagos subsecuentes
+        /// </summary>
+        /// <returns></returns>
+        public List<Periodo> createTable2(int periodosSeguro)
+        {
+
+            int myperiodos = this.periodos - ((this.numPerGracia > 1) ? this.numPerGracia : 0);
+            DateTime fechapago = (this.pergracia) ? fecinicio.AddDays(this.numdiasgraci) : (this.perAjuste) ? fecinicio : incrementFecha(fecinicio);
+            double sldinicial = this.monto;
+            double mypago = this.pago;  // pago ajuste si así se requiere en caso contrario es 0
+            double myinteres = (this.pergracia) ?
+                Math.Round(this.monto * tdsiniva, 2) * this.numdiasgraci : Math.Round(sldinicial * tdsiniva, 2) * freccapit;
+            double myiva = Math.Round(myinteres * iva, 2);
+            //PConsole.writeLine("pergracia " + this.pergracia.ToString() + " anualidad " + this.anualidad.ToString() + " mypago - myinteres - myiva " + mypago.ToString() + " " + myinteres.ToString() + " " + myiva.ToString() + " monto/myperiodos " + this.monto.ToString() + "/" + myperiodos.ToString());
+            double mycapital = (this.pergracia) ? 0 :
+                               (this.anualidad) ? Math.Round((mypago - myinteres - myiva), 2) : Math.Round(this.monto / myperiodos, 2);
+            double sldfinal = Math.Round(sldinicial - mycapital, 2);
+
+            if (this.perAjuste)
+            {
+                myinteres += this.pagoAjuste;
+                myiva = Math.Round(myinteres * iva, 2);
+                mypago = myinteres + myiva + mycapital;
+            }
+
+            //inicializamos  la bandera para saber durante cuantos periodos no se cobra capital;
+            bool multiplePerGracia = (this.pergracia && this.numPerGracia > 1);
+            int inicio = (this.pergracia && !multiplePerGracia) ? 0 : 1;
+            if (!this.anualidad)
+                this.numdiasgraci = (int)freccapit;
+
+            for (int i = inicio; i <= periodos; i++)
+            {
+                Pagos.Add(new Periodo
+                {
+                    periodo = i,
+                    fecha = fechapago,
+                    saldoInicial = sldinicial,
+                    capital = mycapital,
+                    interes = myinteres,
+                    iva = myiva,
+                    pago = (i == 0 || !this.anualidad || multiplePerGracia) ? Math.Round(mycapital + myinteres + myiva, 2) : mypago,
+                    saldofinal = sldfinal,
+                    freccapital = (i == 0 || ((this.perAjuste || multiplePerGracia) && i == 1)) ? this.numdiasgraci : freccapit,
+                    tsiniva = (i == 0) ? this.tdsiniva : this.tsiniva,
+                });
+
+                fecinicio = fechapago;                              //fecha de inicio se vuelve la fecha de pago anterior
+                fechapago = incrementFecha(fechapago);
+                if (!this.anualidad)
+                {
+                    TimeSpan ts = fechapago.Date - fecinicio.Date;
+                    freccapit = ts.Days;
+                }
+
+                updateTasa(fechapago.Year);
+                sldinicial = sldfinal;
+
+                multiplePerGracia = (multiplePerGracia) ? ((i + 1 <= this.numPerGracia) ? true : false) : false;  // actualizamos la bandera ; 
+                // si es que tiene multiple periodos de gracia
+
+                if (i + 1 == 2 && this.perAjuste && this.anualidad) // para el periodo de ajuste;
+                {
+                    int mynewper = periodos - 1;
+                    double mymonto = sldinicial;
+                    recalcPago(mynewper, mymonto);
+                    mypago = this.pago;
+                }
+
+                // myinteres = Math.Round(sldinicial * this.tsiniva_all, 2);
+                myinteres = Math.Round(sldinicial * this.tdsiniva, 2) * freccapit;
+                myiva = Math.Round(myinteres * iva, 2);
+                mycapital = (this.anualidad) ? ((i + 1 == periodos) ? sldinicial : Math.Round((mypago - myinteres - myiva), 2)) : ((i + 1 == periodos) ? sldinicial : Math.Round(this.monto / myperiodos, 2));
+                mycapital = (multiplePerGracia) ? 0 : mycapital;
+                sldfinal = (multiplePerGracia) ? sldinicial : Math.Round(sldinicial - mycapital, 2);
+                mypago = (this.anualidad && i + 1 == periodos) ? Math.Round(mycapital + myinteres + myiva, 2) : mypago;
+
+            }
+
+            return Pagos;
+        }
+
         public List<Periodo> createTableUnPago()
         {
 

@@ -148,45 +148,117 @@ namespace buildTabla2
                         PConsole.writeLine("setTable 7.2");
                         if (mainTable.Attributes.Contains("fib_seguronofinanciado") && mainTable.Attributes.Contains("fib_periodosseguro"))
                         {
+                            Entity EntidadProcesar = servicio.Retrieve(ProcesarId.LogicalName, ProcesarId.Id, new ColumnSet("fib_seguro"));
+                            bool contieneTipoSeguro = EntidadProcesar.Attributes.Contains("fib_seguro_multianual");
+                            int seguromultianual = (contieneTipoSeguro) ? EntidadProcesar.GetAttributeValue<OptionSetValue>("fib_seguro").Value : 0;
 
                             Money fib_importeseguro = (Money)mainTable.Attributes["fib_seguronofinanciado"];
                             double importeSeguro = double.Parse(fib_importeseguro.Value.ToString());
                             Int32 plazoSeguro = Int32.Parse(mainTable.Attributes["fib_periodosseguro"].ToString());
 
-                            GenAmortiza TablaAmortiza2 = new GenAmortiza();
+                            PConsole.writeLine(contieneTipoSeguro.ToString());
 
-                            PConsole.writeLine("setTable 7.2.1");
-                            TablaAmortiza2.configTable(Int32.Parse(periodo.Attributes["fib_equivalenciaendias"].ToString()), anualidad,
-                                   importeSeguro, double.Parse(mainTable.Attributes["fib_tasa"].ToString()),
-                                   double.Parse(mainTable.Attributes["fib_iva"].ToString()), plazoSeguro,
-                                   dateInicio, bool.Parse(mainTable.Attributes["fib_pergracia"].ToString()),
-                                   dateGracia, false, Int32.Parse(mainTable.Contains("fib_numpergracia") ? mainTable.Attributes["fib_numpergracia"].ToString() : "0"));
-                            PConsole.writeLine("setTable 7.2.2");
-                            Seguro = TablaAmortiza2.createTable();
-                            PConsole.writeLine("setTable 7.2.3");
+                            if (contieneTipoSeguro && seguromultianual==4)
+                            {
+                                PConsole.writeLine("setTable 7.3: " + plazoSeguro.ToString());
+                                PConsole.writeLine("setTable 7.4: " + fib_importeseguro.Value.ToString());
+                                double iva = double.Parse(mainTable.Attributes["fib_iva"].ToString().ToString());
+                                double tasaSeguro = Math.Round(importeSeguro / 12, 2);
+                                foreach (var pago in Pagos)
+                                    Seguro.Add(new Periodo
+                                    {
+                                        periodo = pago.periodo,
+                                        fecha = pago.fecha,
+                                        pago = tasaSeguro,
+                                        interes = 0,
+                                        capital = 0,
+                                        iva = 0,
+                                        freccapital = 0,
+                                        saldofinal = 0,
+                                        saldoInicial = 0,
+                                        tsiniva = 0
+                                    });
+                            }
+                            else
+                            {
+
+                                GenAmortiza TablaAmortiza2 = new GenAmortiza();
+                                /*TablaAmortiza2.configTable(periodo.fib_equivalenciaendias.Value, anualidad,
+                                                           (double)mainTable.fib_seguronofinanciado.Value, (double)mainTable.fib_tasa.Value,
+                                                            mainTable.fib_iva.Value,
+                                                            mainTable.fib_periodosseguro.Value,
+                                                            dateInicio, mainTable.fib_pergracia.Value,
+                                                            dateGracia, false,
+                                                            mainTable.fib_numpergracia.Value);*/
+                                PConsole.writeLine("setTable 7.2.1");
+                                TablaAmortiza2.configTable(Int32.Parse(periodo.Attributes["fib_equivalenciaendias"].ToString()), anualidad,
+                                       importeSeguro, double.Parse(mainTable.Attributes["fib_tasa"].ToString()),
+                                       double.Parse(mainTable.Attributes["fib_iva"].ToString()), plazoSeguro,
+                                       dateInicio, bool.Parse(mainTable.Attributes["fib_pergracia"].ToString()),
+                                       dateGracia, false, Int32.Parse(mainTable.Contains("fib_numpergracia") ? mainTable.Attributes["fib_numpergracia"].ToString() : "0"));
+                                PConsole.writeLine("setTable 7.2.2");
+                                Seguro = TablaAmortiza2.createTable();
+                                PConsole.writeLine("setTable 7.2.3");
+                            }
 
                         }
+
+                        //mainTable.fib_frecuenciadecapital = new SdkWs.CrmDecimal();
+                        //mainTable.fib_frecuenciadecapital.Value = (decimal)TablaAmortiza.freccinipago;
+                        //genAmortizaTable(servicio, Pagos, Seguro, mainTable);
+
                     }
                 }
                 else
                 {
                     if (mainTable.Attributes.Contains("fib_importeseguro") && mainTable.Attributes.Contains("fib_plazoseguro"))
                     {
+                        Entity EntidadProcesar = servicio.Retrieve(ProcesarId.LogicalName, ProcesarId.Id, new ColumnSet("fib_seguro_multianual"));
+                        bool contieneCheck = EntidadProcesar.Attributes.Contains("fib_seguro_multianual");
+                        bool seguromultianual = (contieneCheck) ? bool.Parse(EntidadProcesar.Attributes["fib_seguro_multianual"].ToString()) : false;
+                        
                         Money fib_importeseguro = (Money)mainTable.Attributes["fib_importeseguro"];
                         double importeSeguro = double.Parse(fib_importeseguro.Value.ToString());
                         Int32 plazoSeguro = Int32.Parse(mainTable.Attributes["fib_plazoseguro"].ToString());
+
+                        PConsole.writeLine(contieneCheck.ToString());
+                        //PConsole.writeLine(EntidadProcesar.Attributes["fib_seguro_multianual"].ToString());
+
                         
-                        PConsole.writeLine("setTable 7.3: " + plazoSeguro.ToString());
-                        PConsole.writeLine("setTable 7.4: " + fib_importeseguro.Value.ToString());
+                        if (contieneCheck && seguromultianual)
+                        {
+                            PConsole.writeLine("setTable 7.3: " + plazoSeguro.ToString());
+                            PConsole.writeLine("setTable 7.4: " + fib_importeseguro.Value.ToString());
+                            double iva = double.Parse(mainTable.Attributes["fib_iva"].ToString().ToString());
+                            double tasaSeguro = Math.Round(importeSeguro / plazoSeguro, 2);
+                            foreach (var pago in Pagos)
+                                Seguro.Add(new Periodo
+                                {
+                                    periodo = pago.periodo,
+                                    fecha = pago.fecha,
+                                    pago = tasaSeguro,
+                                    interes = 0,
+                                    capital = 0,
+                                    iva = 0,
+                                    freccapital = 0,
+                                    saldofinal = 0,
+                                    saldoInicial = 0,
+                                    tsiniva = 0
+                                });
+                        }
+                        else
+                        {
+                            PConsole.writeLine("setTable 7.5: " + plazoSeguro.ToString());
+                            PConsole.writeLine("setTable 7.6: " + fib_importeseguro.Value.ToString());
 
-                        GenAmortiza TablaAmortiza2 = new GenAmortiza();
-                        TablaAmortiza2.configTable(Int32.Parse(periodo.Attributes["fib_equivalenciaendias"].ToString()), anualidad,
-                                   importeSeguro, double.Parse(mainTable.Attributes["fib_tasa"].ToString()),
-                                   double.Parse(mainTable.Attributes["fib_iva"].ToString()), plazoSeguro,
-                                   dateInicio, bool.Parse(mainTable.Attributes["fib_pergracia"].ToString()),
-                                   dateGracia, false, Int32.Parse(mainTable.Contains("fib_numpergracia") ? mainTable.Attributes["fib_numpergracia"].ToString() : "0"));
-                        Seguro = TablaAmortiza2.createTable();
-
+                            GenAmortiza TablaAmortiza2 = new GenAmortiza();
+                            TablaAmortiza2.configTable(Int32.Parse(periodo.Attributes["fib_equivalenciaendias"].ToString()), anualidad,
+                                       importeSeguro, double.Parse(mainTable.Attributes["fib_tasa"].ToString()),
+                                       double.Parse(mainTable.Attributes["fib_iva"].ToString()), plazoSeguro,
+                                       dateInicio, bool.Parse(mainTable.Attributes["fib_pergracia"].ToString()),
+                                       dateGracia, false, Int32.Parse(mainTable.Contains("fib_numpergracia") ? mainTable.Attributes["fib_numpergracia"].ToString() : "0"));
+                            Seguro = TablaAmortiza2.createTable();
+                        }
                     }
                 }
 
